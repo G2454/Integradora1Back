@@ -1,0 +1,29 @@
+{
+  "name": "integradora1back",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/G2454/Integradora1Back.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/G2454/Integradora1Back/issues"
+  },
+  "homepage": "https://github.com/G2454/Integradora1Back#readme",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "nodemon": "^3.1.9",
+    "sqlite3": "^5.1.7"
+  }
+}
