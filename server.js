@@ -31,8 +31,117 @@ const db = new sqlite3.Database('./db/database.sqlite', (err) => {
            description TEXT
          );`
       );
+      db.run(
+        `CREATE TABLE IF NOT EXISTS user_favorites (
+           user_id INTEGER,
+           event_id INTEGER,
+           PRIMARY KEY (user_id, event_id),
+           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+           FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+         );`
+      );
+      
     }
   });
+
+  app.put('/users/:id/favorite-event', (req, res) => {
+    const { id } = req.params; // User ID
+    const { eventId } = req.body; // Event ID to favorite/unfavorite
+  
+    if (!eventId) {
+      return res.status(400).json({ error: 'Event ID is required' });
+    }
+  
+    // Check if the favorite already exists
+    db.get(
+      `SELECT * FROM user_favorites WHERE user_id = ? AND event_id = ?`,
+      [id, eventId],
+      (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+  
+        if (row) {
+          // If it exists, remove it (unfavorite)
+          db.run(
+            `DELETE FROM user_favorites WHERE user_id = ? AND event_id = ?`,
+            [id, eventId],
+            function (err) {
+              if (err) return res.status(500).json({ error: err.message });
+              res.json({ message: 'Event unfavorited successfully' });
+            }
+          );
+        } else {
+          // If it does not exist, add it (favorite)
+          db.run(
+            `INSERT INTO user_favorites (user_id, event_id) VALUES (?, ?)`,
+            [id, eventId],
+            function (err) {
+              if (err) return res.status(500).json({ error: err.message });
+              res.json({ message: 'Event favorited successfully' });
+            }
+          );
+        }
+      }
+    );
+  });
+
+  app.get('/users/:id/favorite-events', (req, res) => {
+    const { id } = req.params; // User ID
+  
+    db.all(
+      `SELECT events.* FROM events
+       JOIN user_favorites ON events.id = user_favorites.event_id
+       WHERE user_favorites.user_id = ?`,
+      [id],
+      (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ favoritedEvents: rows });
+      }
+    );
+  });
+  
+  
+
+  app.put('/change-password/:email', async (req, res) => {
+    const { email } = req.params; // Get email from URL
+    const { newPassword } = req.body; // Get new password from request body
+  
+    if (!newPassword) {
+      return res.status(400).json({ error: 'New password is required' });
+    }
+  
+    try {
+      const hashedPassword = await security.hash(newPassword, 10);
+  
+      db.run(
+        `UPDATE users SET password = ? WHERE email = ?`,
+        [hashedPassword, email],
+        function (err) {
+          if (err) return res.status(500).json({ error: err.message });
+  
+          if (this.changes === 0) {
+            return res.status(404).json({ error: 'User not found' });
+          }
+  
+          res.json({ message: 'Password updated successfully' });
+        }
+      );
+    } catch (error) {
+      res.status(500).json({ error: 'Something went wrong' });
+    }
+  });
+  
+
+  app.get('/emails', (req, res) => {
+    db.all(`SELECT email FROM users`, [], (err, rows) => {
+      if (err) return res.status(400).json({ error: err.message });
+  
+      // Extract only the email field from each row
+      const emails = rows.map(row => row.email);
+  
+      res.json({ emails });
+    });
+  });
+  
   
   // Register User
   app.post('/register', async (req, res) => {
@@ -56,9 +165,17 @@ const db = new sqlite3.Database('./db/database.sqlite', (err) => {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
       const token = jwt.sign({ id: user.id }, 'secret_key', { expiresIn: '1h' });
-      res.json({ token });
+      
+      // Return full user info along with token
+      res.json({
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        token
+      });
     });
   });
+  
   
   // CRUD for Events
   app.post('/events', (req, res) => {
@@ -67,7 +184,7 @@ const db = new sqlite3.Database('./db/database.sqlite', (err) => {
       `INSERT INTO events (name, date, time, place, image, description) VALUES (?, ?, ?, ?, ?, ?)`,
       [name, date, time, place, image, description],
       function (err) {
-        if (err) return res.status(400).json({ error: err.message });
+        if (err) return res.status(400).json({ error: err.message }) ;
         res.json({ id: this.lastID, message: 'Event created successfully' });
       }
     );
